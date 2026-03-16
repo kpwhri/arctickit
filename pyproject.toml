@@ -1,8 +1,8 @@
 [project]
 name = "arctickit"
 version = "0.1.0"
-description = "Add your description here"
-requires-python = ">=3.14"
+description = "Utilities for working with data in polars."
+requires-python = ">=3.11"
 dependencies = [
     "polars>=1.39.0",
     "polars-io>=0.5.0",
