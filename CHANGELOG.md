@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests for `cast` and `utils`.
 - Lazy/eager operations
 
+### Changed
+
+- `polars_readstat` engine no longer accepts 'engine' as an argument (defaults to rust)
+
 ## [0.1.0] - 2026-03-13
 
 ### Added

@@ -22,11 +22,9 @@ def scan_sas(path: Path | str, engine: Literal['readstat', 'cpp', 'pio'] = 'cpp'
         case 'pio':
             return pio.scan_sas7bdat(path, encoding=encoding)
         case 'readstat':
-            return scan_readstat(str(path), engine=engine)
-        case 'cpp':
-            return scan_readstat(str(path), engine=engine)
+            return scan_readstat(str(path))  # only 1 engine by default: rust
         case _:
-            return scan_readstat(str(path), engine='cpp')
+            return scan_readstat(str(path))
 
 
 def read_sas(path: Path | str, encoding='latin1') -> pl.DataFrame:
