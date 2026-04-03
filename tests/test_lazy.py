@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-from arctickit.lazy import get_schema, ensure_lazy, ensure_eager
+from arctickit.lazy import get_schema, ensure_lazy, ensure_eager, get_columns
 
 
 @pytest.fixture
@@ -25,6 +25,16 @@ def test_get_schema_dataframe(sample_df):
 def test_get_schema_lazyframe(sample_lf):
     schema = get_schema(sample_lf)
     assert schema == sample_lf.collect_schema()
+
+
+def test_get_columns_dataframe(sample_df):
+    columns = get_columns(sample_df)
+    assert columns == list(sample_df.columns)
+
+
+def test_get_columns_lazyframe(sample_lf, sample_df):
+    columns = get_columns(sample_lf)
+    assert columns == list(sample_df.columns)
 
 
 def test_ensure_lazy_from_dataframe(sample_df):

@@ -7,6 +7,10 @@ def get_schema(df: pl.DataFrame | pl.LazyFrame):
     return df.schema
 
 
+def get_columns(df: pl.DataFrame | pl.LazyFrame):
+    return list(get_schema(df).names())
+
+
 def ensure_lazy(df: pl.DataFrame | pl.LazyFrame) -> pl.LazyFrame:
     return df.lazy() if isinstance(df, pl.DataFrame) else df
 

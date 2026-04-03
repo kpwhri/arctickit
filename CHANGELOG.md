@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-04-03
+
+### Added
+
+- Added `get_columns` helper for getting column names from both lazy and eager frames
+
 ## [0.2.0] - 2026-04-01
 
 ### Added
