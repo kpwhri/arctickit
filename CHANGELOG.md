@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added `get_columns` helper for getting column names from both lazy and eager frames
+- `PolarsFrame` type that includes both pl.LazyFrame and pl.DataFrame
+- Decorators for `@requires_eager` (convert lazy -> eager -> return lazy) and `@requires_lazy` to simplify conversions
 
 ## [0.2.0] - 2026-04-01
 
