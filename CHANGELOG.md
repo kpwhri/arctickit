@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- PolarsFrame checks for `is_empty` and `ensure_mode` where lazy/eager is supplied by parameter
+
 ## [0.2.1] - 2026-04-03
 
 ### Added
