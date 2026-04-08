@@ -12,5 +12,10 @@ def lowercase_columns(df: PolarsFrame):
 
 def remove_nbsp(df: PolarsFrame):
     return df.with_columns(
-        [pl.col(pl.String).str.strip_chars_end()]
+        remove_nbsp_expr()
     )
+
+
+def remove_nbsp_expr():
+    """Remove nbsp for teradata"""
+    return pl.col(pl.String).str.strip_chars_end()
