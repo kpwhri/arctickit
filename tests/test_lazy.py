@@ -1,7 +1,7 @@
 import polars as pl
 import pytest
 
-from arctickit.lazy import get_schema, ensure_lazy, ensure_eager, get_columns
+from arctickit.lazy import get_schema, ensure_lazy, ensure_eager, get_columns, get_mode
 
 
 @pytest.fixture
@@ -68,3 +68,13 @@ def test_empty_dataframe():
 def test_schema_consistency(sample_df):
     lf = ensure_lazy(sample_df)
     assert get_schema(sample_df) == get_schema(lf)
+
+
+def test_get_mode_eager(sample_df):
+    mode = get_mode(sample_df)
+    assert mode == 'eager'
+
+
+def test_get_mode_lazy(sample_lf):
+    mode = get_mode(sample_lf)
+    assert mode == 'lazy'

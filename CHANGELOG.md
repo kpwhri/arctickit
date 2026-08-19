@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `get_mode` function to retrieve either 'eager' or 'lazy' as a string
+
 ## [0.2.3] - 2026-04-07
 
 ### Added

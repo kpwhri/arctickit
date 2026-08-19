@@ -36,3 +36,12 @@ def is_empty(df: PolarsFrame) -> bool:
     if isinstance(df, pl.LazyFrame):
         df = df.limit(1).collect()
     return df.is_empty()
+
+
+def get_mode(df: PolarsFrame) -> Literal['lazy', 'eager']:
+    if isinstance(df, pl.LazyFrame):
+        return 'lazy'
+    elif isinstance(df, pl.DataFrame):
+        return 'eager'
+    else:
+        raise ValueError(f'Expected pl.DataFrame or pl.LazyFrame, got "{type(df)}".')
