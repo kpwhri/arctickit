@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-08-24
+
 ### Added
 
 - `get_mode` function to retrieve either 'eager' or 'lazy' as a string
@@ -48,7 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial implementation.
 
-[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.2.3...HEAD
+[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.2.4...HEAD
+
+[0.2.4]: https://github.com/kpwhri/arctickit/compare/v0.2.3...v0.2.4
 
 [0.2.3]: https://github.com/kpwhri/arctickit/compare/v0.2.2...v0.2.3
 
