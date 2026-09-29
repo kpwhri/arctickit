@@ -2,10 +2,16 @@
 
 Notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
+to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.2.5] - 2026-09-29
+
+### Added
+
+- Placing some common expressions and checks here
 
 ## [0.2.4] - 2026-08-24
 
@@ -50,7 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial implementation.
 
-[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.2.4...HEAD
+[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.2.5...HEAD
+
+[0.2.5]: https://github.com/kpwhri/arctickit/compare/v0.2.4...v0.2.5
 
 [0.2.4]: https://github.com/kpwhri/arctickit/compare/v0.2.3...v0.2.4
 
