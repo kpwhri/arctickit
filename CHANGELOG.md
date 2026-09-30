@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- GH Pages docs based on README
+
 ### Changed
 
 - New approach for applying crosstab by first generating combinations and then pivoting

@@ -1,46 +1,6 @@
-# arctickit
+## SAS readers
 
-Small utilities for working with data in polars, with a focus on convenient SAS ingestion and a few dataframe helpers
-that are handy in analysis workflows.
-
-## Features
-
-- Read SAS `sas7bdat` files into polars `DataFrame` objects
-- Lazily scan SAS files into polars `LazyFrame` objects
-- Read SAS metadata without loading the full dataset
-- Print SAS metadata as a readable markdown-style report
-- Create cross-tabulations with polars
-- Apply a few lightweight dataframe cleanup helpers
-
-## Installation
-
-This project uses `uv`.
-
-```bash
-uv sync
-```
-
-## Quick start
-
-```python
-from pathlib import Path
-
-from arctickit import read_sas, scan_sas
-
-sas_path = Path('tests/data/airline.sas7bdat')
-
-df = read_sas(sas_path)
-print(df)
-
-lf = scan_sas(sas_path)
-print(lf.collect())
-```
-
-## API overview
-
-### SAS readers
-
-#### `read_sas(path, encoding='latin1')`
+### `read_sas(path, encoding='latin1')`
 
 Read a SAS dataset into a polars `DataFrame`.
 
@@ -56,7 +16,7 @@ print(df.shape)
 print(df.columns)
 ```
 
-#### `scan_sas(path, engine='cpp', encoding='latin1')`
+### `scan_sas(path, engine='cpp', encoding='latin1')`
 
 Create a lazy polars scan from a SAS dataset.
 
@@ -85,9 +45,9 @@ result_df = (
 print(result_df)
 ```
 
-### SAS metadata helpers
+## SAS metadata helpers
 
-#### `read_sas_metadata(path, encoding='latin1')`
+### `read_sas_metadata(path, encoding='latin1')`
 
 Read metadata from a SAS file without loading the whole dataset.
 
@@ -104,7 +64,7 @@ print(meta.number_columns)
 print(meta.column_names)
 ```
 
-#### `print_sas_metadata(meta_or_path, encoding='latin1')`
+### `print_sas_metadata(meta_or_path, encoding='latin1')`
 
 Print a Markdown-style summary of dataset metadata and columns.
 
@@ -117,12 +77,13 @@ sas_path = Path('tests/data/airline.sas7bdat')
 print_sas_metadata(sas_path)
 ```
 
-### Crosstab helper
+## Crosstab helper
 
-####
+For more details, see: [crosstab docs](crosstab.md).
+
 `crosstab(index, columns, values=None, *, data=None, aggfunc='count', normalize=None, margins=False, margins_name='all', dropna=True, fill_value=None)`
 
-Create a cross-tabulation using polars data. For more info, see: https://kpwhri.github.com/arctickit/crosstab.html
+Create a cross-tabulation using polars data.
 
 ```python
 import polars as pl
@@ -144,9 +105,9 @@ out_df = crosstab(
 print(out_df)
 ```
 
-### Utility helpers
+## Utility helpers
 
-#### `remove_nbsp(df)`
+### `remove_nbsp(df)`
 
 Apply string cleanup across string columns.
 
@@ -163,7 +124,7 @@ clean_df = remove_nbsp(df)
 print(clean_df)
 ```
 
-#### `make_cast_to_date_expr(schema, date_col)`
+### `make_cast_to_date_expr(schema, date_col)`
 
 Create a polars expression that converts a datetime or string column into a date column.
 
@@ -173,8 +134,8 @@ import polars as pl
 from arctickit.cast import make_cast_to_date_expr
 
 df = pl.DataFrame({
-        'event_date': ['2026-03-01', '2026-03-02'],
-    })
+    'event_date': ['2026-03-01', '2026-03-02'],
+})
 
 expr = make_cast_to_date_expr(df.schema, 'event_date')
 out_df = df.with_columns(expr)
@@ -182,29 +143,31 @@ out_df = df.with_columns(expr)
 print(out_df)
 ```
 
+## `polars` expression helpers
 
-### `polars` expression helpers
+These helpers build reusable Polars expressions for common row-wise and grouped flag logic. They are useful when a
+pipeline needs to repeatedly check completeness, combine several flag columns, or turn long classification records into
+wide indicator columns.
 
-These helpers build reusable Polars expressions for common row-wise and grouped flag logic. They are useful when a pipeline needs to repeatedly check completeness, combine several flag columns, or turn long classification records into wide indicator columns.
+Because they return Polars expressions, they can be used inside `select`, `with_columns`, `filter`, and
+`group_by(...).agg(...)` without materializing intermediate data.
 
-Because they return Polars expressions, they can be used inside `select`, `with_columns`, `filter`, and `group_by(...).agg(...)` without materializing intermediate data.
-
-#### `all_columns_non_null_expr`
+### `all_columns_non_null_expr`
 
 Return a Boolean expression that is `True` only when **all** named columns are non-null for a row.
 
-This is useful for filtering records before downstream joins, classification, or scoring steps where incomplete rows should be excluded.
+This is useful for filtering records before downstream joins, classification, or scoring steps where incomplete rows
+should be excluded.
 
 ```python
 import polars as pl
 
 from arctickit.expr import all_columns_non_null_expr
 
-
 df = pl.DataFrame({
-        'mrn': ['A', 'B', 'C', 'D'],
-        'encounter_id': [101, 102, None, 104],
-        'diagnosis_code': ['E119', None, 'I10', 'J449'],
+    'mrn': ['A', 'B', 'C', 'D'],
+    'encounter_id': [101, 102, None, 104],
+    'diagnosis_code': ['E119', None, 'I10', 'J449'],
 })
 
 complete_df = df.filter(
@@ -213,6 +176,7 @@ complete_df = df.filter(
 
 print(complete_df)
 ```
+
 Output:
 
 ```text
@@ -227,23 +191,23 @@ shape: (2, 3)
 └─────┴──────────────┴────────────────┘
 ```
 
-#### `any_flag_column_true_expr`
+### `any_flag_column_true_expr`
 
 Return a Boolean expression that is `True` when **any** named flag column is truthy for a row.
 
-Each input column is cast to Boolean before being combined. This is useful when several detailed flags contribute to a broader derived flag.
+Each input column is cast to Boolean before being combined. This is useful when several detailed flags contribute to a
+broader derived flag.
 
 ```python
 import polars as pl
 
 from arctickit.expr import any_flag_column_true_expr
 
-
 df = pl.DataFrame({
-        'encounter_id': [1, 2, 3, 4],
-        'CHF': [0, 0, 1, 0],
-        'HTNWCHF': [0, 1, 0, 0],
-        'HHRWCHF': [0, 0, 0, 0],
+    'encounter_id': [1, 2, 3, 4],
+    'CHF': [0, 0, 1, 0],
+    'HTNWCHF': [0, 1, 0, 0],
+    'HHRWCHF': [0, 0, 0, 0],
 })
 
 out_df = df.with_columns(
@@ -271,13 +235,15 @@ shape: (4, 5)
 └──────────────┴─────┴─────────┴─────────┴──────────────────────┘
 ```
 
-#### `classification_indicator_exprs`
+### `classification_indicator_exprs`
 
 Return a list of aggregation expressions that create one indicator column for each expected classification value.
 
-For each value, the generated expression checks whether that value appears anywhere in the current group. The result is cast to `Int8`, so each output column contains `1` when the value is present and `0` when it is absent.
+For each value, the generated expression checks whether that value appears anywhere in the current group. The result is
+cast to `Int8`, so each output column contains `1` when the value is present and `0` when it is absent.
 
-This is useful for converting long classification data into one wide row of flags per entity, such as one row per encounter or one row per person.
+This is useful for converting long classification data into one wide row of flags per entity, such as one row per
+encounter or one row per person.
 
 ```python
 import polars as pl
@@ -285,8 +251,8 @@ import polars as pl
 from arctickit.expr import classification_indicator_exprs
 
 df = pl.DataFrame({
-        'encounter_id': [1, 1, 1, 2, 2, 3],
-        'comorbidity': ['CHF', 'DM', 'CHF', 'RENLFAIL', 'DM', 'OTHER'],
+    'encounter_id': [1, 1, 1, 2, 2, 3],
+    'comorbidity': ['CHF', 'DM', 'CHF', 'RENLFAIL', 'DM', 'OTHER'],
 })
 
 flags_df = (
@@ -318,9 +284,10 @@ shape: (3, 4)
 └──────────────┴─────┴─────┴──────────┘
 ```
 
-#### Combined example
+### Combined example
 
-The helpers can be combined in a pipeline: first remove incomplete records, then aggregate long classifications into wide flags, then derive broader summary flags.
+The helpers can be combined in a pipeline: first remove incomplete records, then aggregate long classifications into
+wide flags, then derive broader summary flags.
 
 ```python
 import polars as pl
@@ -375,14 +342,3 @@ shape: (4, 6)
 └──────────────┴─────┴─────┴──────────┴──────────┴───────────────────┘
 ```
 
-
-
-## Development
-
-Run tests with:
-
-```bash
-pytest
-# or
-uv run pytest
-```

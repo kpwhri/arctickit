@@ -102,7 +102,7 @@ def test_crosstab_normalize_index():
 
     res_df = crosstab('a', 'b', data=df, normalize='index', margins=True, margins_name='all')
 
-    pl.testing.assert_frame_equal(
+    assert_frame_equal(
         res_df, exp_df, check_dtypes=False, check_exact=False,
     )
 
@@ -307,3 +307,116 @@ def test_margin_name_collision():
 
     with pytest.raises(ValueError, match='All'):
         crosstab('group', 'category', data=df, margins=True, margins_name='All')
+
+
+def test_crosstab_frequency():
+    """Test basic frequency counts and zero-filled missing combinations."""
+    df = pl.DataFrame({
+        'a': ['x', 'x', 'y'],
+        'b': ['u', 'v', 'v'],
+    })
+    exp_df = pl.DataFrame({
+        'a': ['x', 'y'],
+        'u': [1, 0],
+        'v': [1, 1],
+    })
+
+    res_df = crosstab('a', 'b', data=df)
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False)
+
+
+def test_crosstab_sequences():
+    """Test that factor sequences can be supplied without a DataFrame."""
+    exp_df = pl.DataFrame({
+        'index': ['x', 'y'],
+        'u': [1, 0],
+        'v': [1, 1],
+    })
+
+    res_df = crosstab(
+        ['x', 'x', 'y'],
+        ['u', 'v', 'v'],
+    )
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False)
+
+
+def test_crosstab_dropna_false():
+    """Test that null factor values are retained when dropna=False."""
+    df = pl.DataFrame({
+        'a': ['x', None, 'y'],
+        'b': ['u', 'u', 'v'],
+    })
+
+    res_df = crosstab('a', 'b', data=df, dropna=False)
+
+    assert res_df['a'].null_count() == 1
+
+
+def test_crosstab_fill_value():
+    """Test that fill_value replaces missing aggregate cells."""
+    df = pl.DataFrame({
+        'a': ['x', 'x', 'y'],
+        'b': ['u', 'v', 'v'],
+        'value': [1.0, 3.0, 5.0],
+    })
+    exp_df = pl.DataFrame({
+        'a': ['x', 'y'],
+        'u': [1.0, 0.0],
+        'v': [3.0, 5.0],
+    })
+
+    res_df = crosstab(
+        'a', 'b', values='value', data=df,
+        aggfunc='mean', fill_value=0.0,
+    )
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False, check_exact=False)
+
+
+def test_crosstab_count_values():
+    """Test that count counts non-null values rather than observations."""
+    df = pl.DataFrame({
+        'a': ['x', 'x', 'x'],
+        'b': ['u', 'u', 'v'],
+        'value': [1, None, 2],
+    })
+    exp_df = pl.DataFrame({
+        'a': ['x'],
+        'u': [1],
+        'v': [1],
+    })
+
+    res_df = crosstab('a', 'b', values='value', data=df, aggfunc='count')
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False)
+
+
+def test_crosstab_n_unique_includes_null():
+    """Test that n_unique follows Polars semantics and counts null as unique."""
+    df = pl.DataFrame({
+        'a': ['x', 'x', 'x'],
+        'b': ['u', 'u', 'u'],
+        'value': [1, 1, None],
+    })
+    exp_df = pl.DataFrame({
+        'a': ['x'],
+        'u': [2],
+    })
+
+    res_df = crosstab('a', 'b', values='value', data=df, aggfunc='n_unique')
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False)
+
+
+@pytest.mark.parametrize(('kwargs', 'match'), [
+    ({'normalize': 'bad'}, 'normalize'),
+    ({'aggfunc': 'bad'}, 'aggfunc'),
+])
+def test_crosstab_invalid_arguments(kwargs, match):
+    """Test that unsupported options raise clear errors."""
+    df = pl.DataFrame({'a': ['x'], 'b': ['u'], 'value': [1]})
+
+    with pytest.raises(ValueError, match=match):
+        crosstab('a', 'b', values='value', data=df, **kwargs)
