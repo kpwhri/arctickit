@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-30
+
 ### Added
 
 - GH Pages docs based on README
@@ -65,7 +67,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Initial implementation.
 
-[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.2.5...HEAD
+[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.3.0...HEAD
+
+[0.3.0]: https://github.com/kpwhri/arctickit/compare/v0.2.5...v0.3.0
 
 [0.2.5]: https://github.com/kpwhri/arctickit/compare/v0.2.4...v0.2.5
 
