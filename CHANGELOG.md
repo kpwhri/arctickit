@@ -7,6 +7,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- New approach for applying crosstab by first generating combinations and then pivoting
+- Crosstab normalization only sums to 1 in lower right (total)
+
 ## [0.2.5] - 2026-09-29
 
 ### Added

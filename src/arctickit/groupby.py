@@ -5,35 +5,91 @@ Groupby-like elements which seem to be missing in polars.
 """
 from __future__ import annotations
 
-from typing import Any, Iterable, Literal, Sequence
+from typing import Any, Literal, Sequence, TypeAlias
 
 import polars as pl
 
-Normalize = Literal[None, True, 'all', 'index', 'columns']
-AggFunc = Literal['count', 'sum', 'mean', 'min', 'max', 'median', 'first', 'last', 'n_unique']
+AggFunc: TypeAlias = Literal[
+    'count', 'sum', 'mean', 'min', 'max',
+    'median', 'first', 'last', 'n_unique',
+]
+Normalize: TypeAlias = Literal['all', 'index', 'columns'] | bool | None
 
 
-def _to_series(data: pl.DataFrame | None, x: str | pl.Series | Sequence[Any], name: str) -> pl.Series:
-    """Return a Polars Series from a column name, a Series, or a sequence.
-
-    Parameters
-    ----------
-    data : pl.DataFrame | None
-        Optional DataFrame providing column lookup when `x` is a string.
-    x : str | pl.Series | Sequence[Any]
-        Column name, Series, or sequence of values.
-    name : str
-        Fallback series name to use when a name cannot be inferred.
-    """
-    if isinstance(x, str):
+def _to_series(
+        data: pl.DataFrame | None,
+        value: str | pl.Series | Sequence[Any],
+        name: str,
+) -> pl.Series:
+    """Resolve a column name, Series, or sequence to a Series."""
+    if isinstance(value, str):
         if data is None:
-            raise ValueError('x was a string but no DataFrame was provided to resolve the column')
-        if x not in data.columns:
-            raise KeyError(f'Column {x!r} not found in DataFrame: {data.columns!r}')
-        return data[x]
-    if isinstance(x, pl.Series):
-        return x.rename(name) if x.name is None else x
-    return pl.Series(name, list(x))  # treat as sequence
+            raise ValueError(f'data is required when {name} is a column name')
+        return data.get_column(value)
+
+    if isinstance(value, pl.Series):
+        return value
+
+    return pl.Series(name, value)
+
+
+def _agg_expr(aggfunc: AggFunc, *, frequency: bool) -> pl.Expr:
+    """Return the Polars aggregation expression."""
+    if frequency:
+        return pl.len()
+
+    value = pl.col('__val__')
+    aggfuncs = {
+        'count': value.count(),
+        'sum': value.sum(),
+        'mean': value.mean(),
+        'min': value.min(),
+        'max': value.max(),
+        'median': value.median(),
+        'first': value.first(),
+        'last': value.last(),
+        'n_unique': value.n_unique(),
+    }
+
+    try:
+        return aggfuncs[aggfunc]
+    except KeyError:
+        raise ValueError(f'unsupported aggfunc: {aggfunc!r}') from None
+
+
+def _aggregate(df: pl.DataFrame, by: list[str] | None, expr: pl.Expr) -> pl.DataFrame:
+    """Aggregate with optional grouping."""
+    if by:
+        return (
+            df.group_by(by, maintain_order=True)
+            .agg(expr.alias('__value__'))
+        )
+
+    return df.select(expr.alias('__value__'))
+
+
+def _normalize(
+        df: pl.DataFrame,
+        over: str | None = None,
+) -> pl.DataFrame:
+    """Normalize the __value__ column globally or within groups."""
+    value = pl.col('__value__').cast(pl.Float64).fill_null(0.0)
+    denom = value.sum() if over is None else value.sum().over(over)
+
+    return df.with_columns(
+        pl.when(denom.is_null() | (denom == 0))
+        .then(0.0)
+        .otherwise(value / denom)
+        .alias('__value__')
+    )
+
+
+def _contains_label(series: pl.Series, label: str) -> bool:
+    """Return whether a factor contains a label after string conversion."""
+    return any(
+        value is not None and str(value) == label
+        for value in series
+    )
 
 
 def crosstab(
@@ -49,147 +105,214 @@ def crosstab(
         dropna: bool = True,
         fill_value: Any | None = None,
 ) -> pl.DataFrame:
-    """Compute a cross-tabulation of two (or more) factors using polars.
-
-    This function mirrors common parts of ``pandas.crosstab`` API while operating on Polars data.
+    """Compute a cross-tabulation of two factors using Polars.
 
     Parameters
     ----------
-    index : str | pl.Series | Sequence
-        Row categories. If a string, interpreted as a column of ``data``.
-    columns : str | pl.Series | Sequence
-        Column categories. If a string, interpreted as a column of ``data``.
-    values : str | pl.Series | Sequence | None, default None
-        Values to aggregate. If None, a count aggregation is performed.
-    data : pl.DataFrame | None, keyword-only
-        Optional DataFrame providing columns when inputs are strings.
-    aggfunc : {'count','sum','mean','min','max','median','first','last','n_unique'}
-        Aggregation to apply to ``values``. Ignored when ``values is None`` and ``aggfunc`` is not 'count'.
-    normalize : {None, True, 'all', 'index', 'columns'}
-        If specified, compute proportions over the whole table ('all'), by rows ('index'), or by columns ('columns').
-        ``True`` is an alias for ``'all'``.
-    margins : bool, default False
-        Add row/column totals named by ``margins_name``. For normalized output, margins will contain 1.0 on the
-        normalized axis, similar to pandas.
-    margins_name : str, default 'All'
-        Name of the totals row/column when ``margins=True``.
-    dropna : bool, default True
-        Exclude missing values in inputs. If False, include nulls as a category.
-    fill_value : Any | None
-        Replace nulls in the result with this value (e.g. 0).
+    index
+        Row factor. A string refers to a column in `data`; otherwise
+        provide a Series or sequence of factor values.
+    columns
+        Column factor. A string refers to a column in `data`; otherwise
+        provide a Series or sequence of factor values.
+    values
+        Values to aggregate. If omitted, the table contains frequencies.
+    data
+        DataFrame used to resolve string column names.
+    aggfunc
+        Aggregation applied when `values` is provided. Supported values
+        are 'count', 'sum', 'mean', 'min', 'max', 'median', 'first',
+        'last', and 'n_unique'. When `values` is omitted, frequency
+        counts are used regardless of this argument.
+    normalize
+        Normalize the result over the entire table ('all'), within rows
+        ('index'), or within columns ('columns'). True is equivalent to
+        'all'; False is equivalent to None.
+    margins
+        Add aggregate margins. Margins are calculated directly from the
+        source observations rather than from already-aggregated cells.
+    margins_name
+        Label used for margin rows and columns.
+    dropna
+        If True, exclude rows where either factor is null. Nulls in
+        `values` remain subject to the selected aggregation.
+    fill_value
+        Replace null result cells with this value. The index column is
+        never filled.
 
     Returns
     -------
     pl.DataFrame
-        A wide Polars DataFrame where the first column is the index labels and the remaining columns are one per
-        unique value in ``columns``.
+        Wide cross-tabulation with the row factor in the first column.
+
+    Notes
+    -----
+    A sequence supplied to `index` or `columns` represents factor values,
+    not multiple factor columns.
+
+    `count` counts non-null values. `n_unique` follows Polars semantics,
+    where null is considered a unique value.
+
+    With normalized margins, 'index' adds only a margin row and 'columns'
+    adds only a margin column, matching pandas-style crosstab behavior.
     """
     if normalize is True:
         normalize = 'all'
+    elif normalize is False:
+        normalize = None
+
     if normalize not in (None, 'all', 'index', 'columns'):
-        raise ValueError("normalize must be one of None, True, 'all', 'index', or 'columns'")
+        raise ValueError(
+            "normalize must be one of None, True, False, 'all', "
+            "'index', or 'columns'"
+        )
 
     idx_s = _to_series(data, index, 'index')
     col_s = _to_series(data, columns, 'columns')
+    val_s = None if values is None else _to_series(data, values, 'values')
 
-    df = pl.DataFrame({'__idx__': idx_s, '__col__': col_s})
+    series = [idx_s, col_s] + ([] if val_s is None else [val_s])
+    if len({len(s) for s in series}) != 1:
+        raise ValueError('index, columns, and values must have equal lengths')
 
-    if values is None:
-        # emulate counts by adding a unit column and summing
-        df = df.with_columns(pl.lit(1).alias('__val__'))
-        agg = 'sum'
-    else:
-        val_s = _to_series(data, values, 'values')
-        df = df.with_columns(val_s.alias('__val__'))
-        agg = 'count' if aggfunc == 'count' else aggfunc
+    idx_name = (
+        index if isinstance(index, str)
+        else idx_s.name or 'index'
+    )
+
+    frequency = values is None
+    expr = _agg_expr(aggfunc, frequency=frequency)
+
+    cols = {
+        '__idx__': idx_s,
+        '__col__': col_s,
+    }
+    if val_s is not None:
+        cols['__val__'] = val_s
+
+    df = pl.DataFrame(cols)
 
     if dropna:
-        df = df.filter(pl.col('__idx__').is_not_null() & pl.col('__col__').is_not_null())
+        df = df.filter(
+            pl.col('__idx__').is_not_null()
+            & pl.col('__col__').is_not_null()
+        )
 
-    # index rows by __idx__, columns generated from __col__, aggregating __val__
-    table = df.pivot(index='__idx__', on='__col__', values='__val__', aggregate_function=agg)
+    add_margin_col = (
+            margins and normalize in (None, 'all', 'columns')
+    )
+    add_margin_row = (
+            margins and normalize in (None, 'all', 'index')
+    )
 
-    # ensure predictable ordering of columns: sort by column name (string representation for None)
-    col_names = [c for c in table.columns if c != '__idx__']
-    # sort column labels while keeping types stable by string key
-    sorted_cols = sorted(col_names, key=lambda x: str(x))
-    table = table.select(['__idx__', *sorted_cols])  # index in first column
+    if add_margin_col:
+        if idx_name == margins_name:
+            raise ValueError(
+                f'margins_name {margins_name!r} conflicts with index name'
+            )
+        if _contains_label(col_s, margins_name):
+            raise ValueError(
+                f'margins_name {margins_name!r} conflicts with a column category'
+            )
 
-    if isinstance(index, str):  # rename index
-        idx_name = index
-    else:
-        idx_name = getattr(idx_s, 'name', None) or 'index'
-    table = table.rename({'__idx__': idx_name})
+    if add_margin_row and _contains_label(idx_s, margins_name):
+        raise ValueError(
+            f'margins_name {margins_name!r} conflicts with an index category'
+        )
 
-    if fill_value is not None:
-        table = table.fill_null(fill_value)
-
-    if normalize is not None:
-        value_cols = [c for c in table.columns if c != idx_name]
-        if normalize == 'all':
-            # compute total sum as a scalar of all value cells
-            total_sum = 0.0
-            for c in value_cols:
-                total_sum += float(table.select(pl.sum(c)).item() or 0.0)
-            if total_sum == 0.0:
-                table = table.with_columns([pl.lit(0.0).alias(c) for c in value_cols])
-            else:
-                table = table.with_columns([pl.col(c) / total_sum for c in value_cols])
-        elif normalize == 'index':
-            table = table.with_columns(
-                pl.sum_horizontal([pl.col(c) for c in value_cols]).alias('__rowsum__')
-            ).with_columns([
-                (pl.col(c) / pl.col('__rowsum__')).alias(c) for c in value_cols
-            ]).drop('__rowsum__')
-        elif normalize == 'columns':
-            # compute column-wise sums and divide
-            col_sums = table.select([pl.sum(c).alias(c) for c in value_cols])
-            # avoid division by zero by replacing 0 sums with 1 for division and then fixing results
-            safe_divs: list[pl.Expr] = []
-            for c in value_cols:
-                denom = float(col_sums[c][0]) if col_sums.height > 0 else 0.0
-                if denom == 0:
-                    safe_divs.append(pl.lit(0.0).alias(c))
-                else:
-                    safe_divs.append((pl.col(c) / denom).alias(c))
-            table = table.with_columns(safe_divs)
+    cells = _aggregate(df, ['__idx__', '__col__'], expr)
 
     if margins:
-        value_cols = [c for c in table.columns if c != idx_name]
-        if normalize is None:
-            # compute totals in original scale
-            row_tot = pl.sum_horizontal(pl.all().exclude(idx_name)).alias(margins_name)
-            table = table.with_columns(row_tot)
-            col_tot_df = table.select([pl.lit(margins_name).alias(idx_name), *[pl.sum(c).alias(c) for c in value_cols]])
-            # sum for the margins column as well
-            grand_total = col_tot_df.select(pl.sum_horizontal(pl.all().exclude(idx_name))).item()
-            col_tot_df = col_tot_df.with_columns(pl.lit(grand_total).alias(margins_name))
-            table = pl.concat([table, col_tot_df], how='vertical_relaxed')
-        elif normalize == 'all':
-            # all proportions sum to 1 across entire table
-            row_tot = pl.lit(1.0).alias(margins_name)
-            table = table.with_columns(row_tot)
-            bottom = pl.DataFrame({idx_name: [margins_name], **{c: [1.0] for c in value_cols}, margins_name: [1.0]})
-            table = pl.concat([table, bottom], how='vertical_relaxed')
-        elif normalize == 'index':
-            # Row sums are 1.0 across value columns; set margins column to 0.0 for regular rows
-            table = table.with_columns(pl.lit(0.0).alias(margins_name))
-            # Add a bottom row of ones and 1.0 in bottom-right
-            bottom = pl.DataFrame({idx_name: [margins_name], **{c: [1.0] for c in value_cols}, margins_name: [1.0]})
-            table = pl.concat([table, bottom], how='vertical_relaxed')
-        elif normalize == 'columns':
-            # column sums are 1.0, but row sums can be greater
-            row_tot = pl.sum_horizontal(pl.all().exclude(idx_name)).alias(margins_name)
-            # under column normalization, each column sums to 1, margins column equals row sums
-            table = table.with_columns(row_tot)
-            bottom = pl.DataFrame(
-                {idx_name: [margins_name], **{c: [1.0] for c in value_cols}, margins_name: [float(len(value_cols))]})
-            # pandas uses 1.0 in bottom-right for columns normalization; adjust to 1.0
-            bottom = bottom.with_columns(pl.lit(1.0).alias(margins_name))
-            table = pl.concat([table, bottom], how='vertical_relaxed')
+        row_margin = _aggregate(df, ['__idx__'], expr)
+        col_margin = _aggregate(df, ['__col__'], expr)
+        grand_margin = _aggregate(df, None, expr)
 
-        # margins may have introduced nulls?
-        if fill_value is not None:
-            table = table.fill_null(fill_value)
+    if normalize == 'all':
+        cells = _normalize(cells)
 
-    return table
+        if margins:
+            row_margin = _normalize(row_margin)
+            col_margin = _normalize(col_margin)
+            grand_margin = grand_margin.with_columns(
+                pl.lit(1.0).alias('__value__')
+            )
+
+    elif normalize == 'index':
+        cells = _normalize(cells, '__idx__')
+
+        if margins:
+            col_margin = _normalize(col_margin)
+
+    elif normalize == 'columns':
+        cells = _normalize(cells, '__col__')
+
+        if margins:
+            row_margin = _normalize(row_margin)
+
+    parts = [cells]
+
+    if add_margin_col:
+        parts.append(
+            row_margin
+            .with_columns(pl.lit(margins_name).alias('__col__'))
+            .select('__idx__', '__col__', '__value__')
+        )
+
+    if add_margin_row:
+        parts.append(
+            col_margin
+            .with_columns(pl.lit(margins_name).alias('__idx__'))
+            .select('__idx__', '__col__', '__value__')
+        )
+
+    if margins and normalize in (None, 'all'):
+        parts.append(
+            grand_margin
+            .with_columns(
+                pl.lit(margins_name).alias('__idx__'),
+                pl.lit(margins_name).alias('__col__'),
+            )
+            .select('__idx__', '__col__', '__value__')
+        )
+
+    long_df = (
+        cells
+        if len(parts) == 1
+        else pl.concat(parts, how='vertical_relaxed')
+    )
+
+    table = long_df.pivot(
+        on='__col__',
+        index='__idx__',
+        values='__value__',
+        aggregate_function='first',
+        maintain_order=True,
+        sort_columns=True,
+    )
+
+    value_cols = [c for c in table.columns if c != '__idx__']
+
+    # Keep the margin column last.
+    if add_margin_col and margins_name in value_cols:
+        value_cols = [
+                         c for c in value_cols if c != margins_name
+                     ] + [margins_name]
+        table = table.select('__idx__', *value_cols)
+
+    if idx_name in value_cols:
+        raise ValueError(
+            f'index name {idx_name!r} conflicts with a generated column'
+        )
+
+    # Frequency tables and normalized tables represent absent cells as zero.
+    if value_cols and (frequency or normalize is not None):
+        table = table.with_columns(
+            pl.col(value_cols).fill_null(0)
+        )
+
+    if value_cols and fill_value is not None:
+        table = table.with_columns(
+            pl.col(value_cols).fill_null(fill_value)
+        )
+
+    return table.rename({'__idx__': idx_name})

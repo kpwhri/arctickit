@@ -5,6 +5,7 @@ Tests for groupby-like elements
 """
 import polars as pl
 import pytest
+from polars.testing import assert_frame_equal
 
 from arctickit.groupby import crosstab
 
@@ -67,50 +68,242 @@ def test_crosstab_margins_counts():
 
 
 def test_crosstab_normalize_all():
+    """Test normalization over all cells, including proportional margins."""
     df = pl.DataFrame({
         'a': ['x', 'x', 'y', 'y', 'y'],
         'b': ['u', 'v', 'u', 'u', 'v'],
     })
-    out = crosstab('a', 'b', data=df, normalize=True, margins=True, margins_name='all', fill_value=0.0)
-    # counts grid: x-u=1, x-v=1, y-u=2, y-v=1
-    expected = {
-        ('x', 'u'): 1 / 5, ('x', 'v'): 1 / 5,
-        ('y', 'u'): 2 / 5, ('y', 'v'): 1 / 5,
-    }
-    for a in ['x', 'y']:
-        for b in ['u', 'v']:
-            val = out.filter(pl.col('a') == a).select(b).item()
-            assert pytest.approx(val, rel=1e-9) == expected[(a, b)]
-    # margins should be 1 across normalized axis
-    assert out.filter(pl.col('a') == 'all').select('u').item() == pytest.approx(1.0)
-    assert out.filter(pl.col('a') == 'all').select('v').item() == pytest.approx(1.0)
-    assert out.filter(pl.col('a') == 'x').select('all').item() == pytest.approx(1.0)
-    assert out.filter(pl.col('a') == 'y').select('all').item() == pytest.approx(1.0)
-    assert out.filter(pl.col('a') == 'all').select('all').item() == pytest.approx(1.0)
+    exp_df = pl.DataFrame({
+        'a': ['x', 'y', 'all'],
+        'u': [1 / 5, 2 / 5, 3 / 5],
+        'v': [1 / 5, 1 / 5, 2 / 5],
+        'all': [2 / 5, 3 / 5, 1.0],
+    })
+
+    res_df = crosstab(
+        'a', 'b', data=df, normalize=True,
+        margins=True, margins_name='all', fill_value=0.0,
+    )
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False, check_exact=False)
 
 
-def test_crosstab_normalize_index_and_columns():
-    margins_name = 'all'
+def test_crosstab_normalize_index():
+    """Test row normalization and the normalized overall column distribution."""
     df = pl.DataFrame({
         'a': ['x', 'x', 'y', 'y', 'y'],
         'b': ['u', 'v', 'u', 'u', 'v'],
     })
-    out_idx = crosstab('a', 'b', data=df, normalize='index', margins=True, margins_name=margins_name)
-    # ensure ach row sums to ~1
-    for a in ['x', 'y']:
-        rowsum = out_idx.filter(pl.col('a') == a).select(pl.sum_horizontal(pl.all().exclude('a'))).item()
-        assert pytest.approx(rowsum, rel=1e-9) == 1.0
-    assert out_idx.filter(pl.col('a') == margins_name).select('u').item() == pytest.approx(1.0)
-    assert out_idx.filter(pl.col('a') == margins_name).select('v').item() == pytest.approx(1.0)
-    assert out_idx.filter(pl.col('a') == margins_name).select(margins_name).item() == pytest.approx(1.0)
+    exp_df = pl.DataFrame({
+        'a': ['x', 'y', 'all'],
+        'u': [1 / 2, 2 / 3, 3 / 5],
+        'v': [1 / 2, 1 / 3, 2 / 5],
+    })
 
-    out_col = crosstab('a', 'b', data=df, normalize='columns', margins=True, margins_name=margins_name)
-    # Each column sums to ~1, but we'll need to remove the final (summary) row
-    col_sum_u = out_col.select(pl.sum('u')).item() - out_col.select('u').tail(1).item()
-    col_sum_v = out_col.select(pl.sum('v')).item() - out_col.select('v').tail(1).item()
-    assert pytest.approx(col_sum_u, rel=1e-9) == 1.0
-    assert pytest.approx(col_sum_v, rel=1e-9) == 1.0
-    # bottom row should be 1s and bottom-right 1.0
-    assert out_col.filter(pl.col('a') == margins_name).select('u').item() == pytest.approx(1.0)
-    assert out_col.filter(pl.col('a') == margins_name).select('v').item() == pytest.approx(1.0)
-    assert out_col.filter(pl.col('a') == margins_name).select(margins_name).item() == pytest.approx(1.0)
+    res_df = crosstab('a', 'b', data=df, normalize='index', margins=True, margins_name='all')
+
+    pl.testing.assert_frame_equal(
+        res_df, exp_df, check_dtypes=False, check_exact=False,
+    )
+
+
+def test_crosstab_normalize_columns():
+    """Test column normalization and the normalized overall row distribution."""
+    df = pl.DataFrame({
+        'a': ['x', 'x', 'y', 'y', 'y'],
+        'b': ['u', 'v', 'u', 'u', 'v'],
+    })
+    exp_df = pl.DataFrame({
+        'a': ['x', 'y'],
+        'u': [1 / 3, 2 / 3],
+        'v': [1 / 2, 1 / 2],
+        'all': [2 / 5, 3 / 5],
+    })
+
+    res_df = crosstab('a', 'b', data=df, normalize='columns', margins=True, margins_name='all')
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False, check_exact=False)
+
+
+def test_values_count():
+    """Test that count with values counts only non-null values."""
+    df = pl.DataFrame({
+        'group': ['A', 'A', 'A'],
+        'category': ['x', 'x', 'y'],
+        'value': [1, None, 3],
+    })
+    exp_df = pl.DataFrame({'group': ['A'], 'x': [1], 'y': [1]})
+
+    res_df = crosstab(
+        'group', 'category', values='value', data=df,
+        aggfunc='count', fill_value=0,
+    )
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False)
+
+
+def test_n_unique():
+    """Test that n_unique counts distinct values within each cell."""
+    df = pl.DataFrame({
+        'group': ['A'] * 4,
+        'category': ['x', 'x', 'x', 'y'],
+        'value': [1, 1, 2, 10],
+    })
+    exp_df = pl.DataFrame({'group': ['A'], 'x': [2], 'y': [1]})
+
+    res_df = crosstab('group', 'category', values='value', data=df, aggfunc='n_unique')
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False)
+
+
+def test_mean_row_margin():
+    """Test that mean row margins aggregate original values, not cell means."""
+    df = pl.DataFrame({
+        'group': ['A'] * 3,
+        'category': ['x', 'x', 'y'],
+        'value': [1.0, 3.0, 100.0],
+    })
+    exp_df = pl.DataFrame({
+        'group': ['A', 'All'],
+        'x': [2.0, 2.0],
+        'y': [100.0, 100.0],
+        'All': [104 / 3, 104 / 3],
+    })
+
+    res_df = crosstab(
+        'group', 'category', values='value', data=df,
+        aggfunc='mean', margins=True, margins_name='All',
+    )
+
+    assert_frame_equal(res_df, exp_df, check_exact=False)
+
+
+def test_mean_grand_margin():
+    """Test that the grand mean margin aggregates all original observations."""
+    df = pl.DataFrame({
+        'group': ['A', 'A', 'A', 'B'],
+        'category': ['x', 'x', 'y', 'y'],
+        'value': [1.0, 3.0, 100.0, 20.0],
+    })
+    exp_df = pl.DataFrame({
+        'group': ['A', 'B', 'All'],
+        'x': [2.0, None, 2.0],
+        'y': [100.0, 20.0, 60.0],
+        'All': [104 / 3, 20.0, 31.0],
+    })
+
+    res_df = crosstab(
+        'group', 'category', values='value', data=df,
+        aggfunc='mean', margins=True, margins_name='All',
+    )
+
+    assert_frame_equal(res_df, exp_df, check_exact=False)
+
+
+def test_normalize_all_margins():
+    """Test that normalize='all' produces proportional row and column margins."""
+    df = pl.DataFrame({
+        'group': ['A', 'A', 'B', 'B'],
+        'category': ['x', 'y', 'y', 'y'],
+    })
+    exp_df = pl.DataFrame({
+        'group': ['A', 'B', 'All'],
+        'x': [0.25, 0.0, 0.25],
+        'y': [0.25, 0.5, 0.75],
+        'All': [0.5, 0.5, 1.0],
+    })
+
+    res_df = crosstab(
+        'group', 'category', data=df,
+        normalize='all', margins=True,
+        margins_name='All', fill_value=0,
+    )
+
+    assert_frame_equal(res_df, exp_df, check_exact=False)
+
+
+def test_normalize_index_margins():
+    """Test that normalize='index' adds a normalized margin row but no margin column."""
+    df = pl.DataFrame({
+        'group': ['A', 'A', 'B', 'B'],
+        'category': ['x', 'y', 'y', 'y'],
+    })
+    exp_df = pl.DataFrame({
+        'group': ['A', 'B', 'All'],
+        'x': [0.5, 0.0, 0.25],
+        'y': [0.5, 1.0, 0.75],
+    })
+
+    res_df = crosstab(
+        'group', 'category', data=df,
+        normalize='index', margins=True,
+        margins_name='All', fill_value=0,
+    )
+
+    assert_frame_equal(res_df, exp_df, check_exact=False)
+
+
+def test_normalize_columns_margins():
+    """Test that normalize='columns' adds a normalized margin column but no margin row."""
+    df = pl.DataFrame({
+        'group': ['A', 'A', 'B', 'B'],
+        'category': ['x', 'y', 'y', 'y'],
+    })
+    exp_df = pl.DataFrame({
+        'group': ['A', 'B'],
+        'x': [1.0, 0.0],
+        'y': [1 / 3, 2 / 3],
+        'All': [0.5, 0.5],
+    })
+
+    res_df = crosstab(
+        'group', 'category', data=df,
+        normalize='columns', margins=True,
+        margins_name='All', fill_value=0,
+    )
+
+    assert_frame_equal(res_df, exp_df, check_exact=False)
+
+
+def test_fill_value_preserves_null_index():
+    """Test that fill_value does not replace a null index category."""
+    df = pl.DataFrame(
+        {'group': [None, 1], 'category': ['x', 'x']},
+        schema={'group': pl.Int64, 'category': pl.String},
+    )
+    exp_df = pl.DataFrame(
+        {'group': [None, 1], 'x': [1, 1]},
+        schema={'group': pl.Int64, 'x': pl.Int64},
+    )
+
+    res_df = crosstab('group', 'category', data=df, dropna=False, fill_value=0)
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False)
+
+
+def test_missing_frequency_combination():
+    """Test that unobserved frequency-table combinations are represented by zero."""
+    df = pl.DataFrame({
+        'group': ['A', 'A', 'B'],
+        'category': ['x', 'y', 'y'],
+    })
+    exp_df = pl.DataFrame({
+        'group': ['A', 'B'],
+        'x': [1, 0],
+        'y': [1, 1],
+    })
+
+    res_df = crosstab('group', 'category', data=df)
+
+    assert_frame_equal(res_df, exp_df, check_dtypes=False)
+
+
+def test_margin_name_collision():
+    """Test that a margin name cannot overwrite an existing category."""
+    df = pl.DataFrame({
+        'group': ['A', 'B'],
+        'category': ['All', 'x'],
+    })
+
+    with pytest.raises(ValueError, match='All'):
+        crosstab('group', 'category', data=df, margins=True, margins_name='All')
