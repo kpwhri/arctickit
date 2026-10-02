@@ -7,6 +7,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- GH pages build workflow
+
 ## [0.3.0] - 2026-09-30
 
 ### Added

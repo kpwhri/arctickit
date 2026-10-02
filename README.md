@@ -3,6 +3,8 @@
 Small utilities for working with data in polars, with a focus on convenient SAS ingestion and a few dataframe helpers
 that are handy in analysis workflows.
 
+See the documentation [here](https://kpwhri.github.io/arctickit/).
+
 ## Features
 
 - Read SAS `sas7bdat` files into polars `DataFrame` objects
