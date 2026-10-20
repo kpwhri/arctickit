@@ -16,8 +16,6 @@ aggregation semantics. Unlike polars, it is limited to two categorical factors (
 
 ## Contents
 
-## Contents
-
 - [Usage](#basic-usage)
 - [Parameters](#parameters)
 - [Frequency Tables](#frequency-tables)
@@ -29,6 +27,8 @@ aggregation semantics. Unlike polars, it is limited to two categorical factors (
 - [Implementation Notes](#implementation-notes)
 - [Comparison With `pivot`](#comparison-with-pivot)
 - [Limitations (i.e., when to use pandas)](#limitations)
+
+Back to [index](index.md)
 
 ## Basic Usage
 

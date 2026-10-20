@@ -10,6 +10,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - GH pages build workflow
+- `db2parquet` function to simplify large-scale reading from database
 
 ## [0.3.0] - 2026-09-30
 

@@ -1,3 +1,18 @@
+## Contents
+
+* [Read SAS Datasets](#sas-readers)
+* [Read SAS Dataset Metadata](#sas-metadata-helpers)
+* [Crosstabs in polars](#crosstab-helper)
+* [Miscellaneous Helpers](#utility-helpers)
+    * [Remove Spaces including NBSP](#remove_nbspdf)
+    * [Convert Datetime/String Column to Date](#make_cast_to_date_exprschema-date_col)
+* [`polars` Expression Helpers](#polars-expression-helpers)
+    * [All Columns Non-Null](#all_columns_non_null_expr)
+    * [Any Column Flagged as True](#any_flag_column_true_expr)
+    * [Create Indicator Flags](#classification_indicator_exprs)
+
+Back to [index](index.md)
+
 ## SAS readers
 
 ### `read_sas(path, encoding='latin1')`

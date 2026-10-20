@@ -8,6 +8,7 @@ See the documentation [here](https://kpwhri.github.io/arctickit/).
 ## Features
 
 - Read SAS `sas7bdat` files into polars `DataFrame` objects
+- Read large database queries to parquet files in batches
 - Lazily scan SAS files into polars `LazyFrame` objects
 - Read SAS metadata without loading the full dataset
 - Print SAS metadata as a readable markdown-style report

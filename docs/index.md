@@ -14,6 +14,7 @@ that are handy in analysis workflows.
 
 - [API](api.md)
 - [crosstab](crosstab.md)
+- [Read Database Query to Parquet](db2parquet.md)
 
 ## Quick start
 
