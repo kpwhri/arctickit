@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-20
+
 ### Added
 
 - GH pages build workflow
@@ -72,7 +74,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Initial implementation.
 
-[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.3.0...HEAD
+[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.4.0...HEAD
+
+[0.4.0]: https://github.com/kpwhri/arctickit/compare/v0.3.0...v0.4.0
 
 [0.3.0]: https://github.com/kpwhri/arctickit/compare/v0.2.5...v0.3.0
 
