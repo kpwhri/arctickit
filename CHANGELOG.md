@@ -7,6 +7,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-21
+
+### Added
+
+- `polars-cnlp` to requirements
+- Experiment with `polars` syntactic sugar methods
+
 ## [0.4.0] - 2026-10-20
 
 ### Added

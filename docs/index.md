@@ -15,6 +15,7 @@ that are handy in analysis workflows.
 - [API](api.md)
 - [crosstab](crosstab.md)
 - [Read Database Query to Parquet](db2parquet.md)
+- [Syntactic Sugar for `polars` Queries](gummybears.md)
 
 ## Quick start
 
