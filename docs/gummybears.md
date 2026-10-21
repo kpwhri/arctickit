@@ -63,7 +63,7 @@ make a single line count as a complete match.
 - Single-value prefix and suffix comparisons also match the empty string on non-null text.
 - The `values` parameters accept a `Sequence[str]` such as a list or tuple; a plain `str` should be passed only to
   singular methods.
-- All operations are case-sensitive except `regex_search_ignore_case` / `imatch`.
+- All operations are case-sensitive except `isearch`.
 
 To include nulls in a negated filter explicitly, use Polars' native `is_null()`:
 
