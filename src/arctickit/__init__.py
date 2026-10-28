@@ -1,3 +1,4 @@
+from arctickit._version import __version__
 from arctickit.db2parquet import get_or_create_parquet, read_grouped_database_to_parquet, read_database_to_parquet
 from arctickit.gummy.text_column import TextColumn
 from arctickit.sas import scan_sas, read_sas
