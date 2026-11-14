@@ -10,6 +10,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Exposed version info via `__version__`
+- Improved `to_date_expr` to cast to date (will be useful in polars 2.x)
+- Added `to_date_lit_expr` to create pl.Date from Python string/date/datetime
 
 ## [0.4.1] - 2026-10-21
 

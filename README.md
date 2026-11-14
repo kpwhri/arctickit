@@ -166,21 +166,42 @@ clean_df = remove_nbsp(df)
 print(clean_df)
 ```
 
-#### `make_cast_to_date_expr(schema, date_col)`
+#### `to_date_expr(schema, date_col, out_col)`
 
-Create a polars expression that converts a datetime or string column into a date column.
+Create a polars expression that converts a datetime or string column into a date column. Output column name defaults to original name (i.e., overwrite original column)
 
 ```python
 import polars as pl
 
-from arctickit.cast import make_cast_to_date_expr
+from arctickit.cast import to_date_expr
 
 df = pl.DataFrame({
         'event_date': ['2026-03-01', '2026-03-02'],
     })
 
-expr = make_cast_to_date_expr(df.schema, 'event_date')
-out_df = df.with_columns(expr)
+out_df = df.with_columns(
+    to_date_expr(df.schema, 'event_date'),
+    # different output format
+    to_date_expr(df.schema, 'event_date', 'index_date'),
+)
+
+print(out_df)
+```
+
+#### `to_date_lit_expr(value, out_col)`
+
+Create a polars expression that converts a Python datetime or string literal into a polars `pl.Date` column.
+
+```python
+import polars as pl
+
+from arctickit.cast import to_date_lit_expr
+
+df.with_columns(
+    to_date_lit_expr('2026-11-13', 'index_date'),
+    # if special format, use `format`
+    to_date_lit_expr('11/13/2026', 'index_date2', format='%m/%d/%Y'),
+)
 
 print(out_df)
 ```
