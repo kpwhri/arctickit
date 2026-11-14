@@ -7,6 +7,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-11-13
+
 ### Added
 
 - Exposed version info via `__version__`
@@ -87,7 +89,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Initial implementation.
 
-[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.4.1...HEAD
+[unreleased]: https://github.com/kpwhri/arctickit/compare/v0.4.2...HEAD
+
+[0.4.2]: https://github.com/kpwhri/arctickit/compare/v0.4.1...v0.4.2
 
 [0.4.1]: https://github.com/kpwhri/arctickit/compare/v0.4.0...v0.4.1
 
